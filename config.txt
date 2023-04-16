@@ -1,4 +1,0 @@
-ftp_path=
-ftp_location=
-ftp_username=
-ftp_password=
