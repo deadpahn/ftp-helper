@@ -19,9 +19,12 @@ FTP_LOCATION=$(grep "ftp_location=" config.txt | cut -d= -f2)
 FTP_USERNAME=$(grep "ftp_username=" config.txt | cut -d= -f2)
 FTP_PASSWORD=$(grep "ftp_password=" config.txt | cut -d= -f2)
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+#SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+echo "The script you are running has basename $( basename -- "$0"; ), dirname $( dirname -- "$0"; )";
+echo "The present working directory is $( pwd; )";
+
 # Set the folder path
-folder_path=$(cd "$SCRIPT_DIR"; pwd)
+folder_path=$( pwd; )
 
 
 # Get a list of files in the folder
