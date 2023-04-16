@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Check for dependencies
+if ! command -v ncftpput &> /dev/null
+then
+    echo "ncftpput command not found. Please install ncftp."
+    exit 1
+fi
+
+if ! command -v dialog &> /dev/null
+then
+    echo "dialog command not found. Please install dialog."
+    exit 1
+fi
+
 # Read FTP path, location, username, and password from a config file
 FTP_PATH=$(grep "ftp_path=" config.txt | cut -d= -f2)
 FTP_LOCATION=$(grep "ftp_location=" config.txt | cut -d= -f2)
@@ -19,28 +32,11 @@ selected_files=$(dialog --stdout \
                     0 0 0 \
                     $(for file in $files; do echo "$file \"$file\" off"; done))
 
-# Print the selected files
-# echo "Selected files: $folder_path/$selected_files"
-
 # Copy the selected items to the FTP site
-if [ -d "$folder_path/$selected_files" ]; then
-    echo "copying $folder_path/$selected_files to $FTP_LOCATION$FTP_PATH";
-    ftp -i -n -d <<EOF
-    open $FTP_LOCATION
-    user $FTP_USERNAME $FTP_PASSWORD
-    cd $FTP_PATH
-    epsv off
-    quit
-EOF
-    lftp -e "mirror --reverse $folder_path/$selected_files; quit" -u $FTP_USERNAME,$FTP_PASSWORD $FTP_PATH/$FTP_LOCATION
-else
-    echo "copying $folder_path/$selected_files to $FTP_LOCATION$FTP_PATH";
-    ftp -i -n -d <<EOF
-    open $FTP_LOCATION
-    user $FTP_USERNAME $FTP_PASSWORD
-    cd $FTP_PATH
-    epsv off
-    put "$folder_path/$selected_files" "$FTP_PATH/$selected_files"
-    quit
-EOF
-fi
+for file in $selected_files; do
+  ncftpput -R -v -u $FTP_USERNAME -p $FTP_PASSWORD $FTP_LOCATION $FTP_PATH "$folder_path/$file"
+done
+
+clear
+
+echo "Done adding $selected_files"
