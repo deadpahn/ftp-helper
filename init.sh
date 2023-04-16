@@ -6,58 +6,41 @@ FTP_LOCATION=$(grep "ftp_location=" config.txt | cut -d= -f2)
 FTP_USERNAME=$(grep "ftp_username=" config.txt | cut -d= -f2)
 FTP_PASSWORD=$(grep "ftp_password=" config.txt | cut -d= -f2)
 
-# Define the working directory
-WORKING_DIR=$(pwd)
+# Set the folder path
+folder_path=$(cd "$(dirname "$0")"; pwd)
 
-# Create an array to store the selected items
-SELECTED_ITEMS=()
+# Get a list of files in the folder
+files=$(ls $folder_path)
 
-# Use DIALOG to create a multi-select prompt
-while true; do
-    # Get the list of items in the working directory
-    ITEMS=$(ls -1 $WORKING_DIR)
+# Create the dialog window using zenity
+selected_files=$(zenity --list \
+                    --title="Select Files" \
+                    --multiple \
+                    --column="Files" \
+                    $files)
 
-    # Create an array of menu items
-    MENU_ITEMS=()
-    for ITEM in $ITEMS; do
-        if [ -d "$WORKING_DIR/$ITEM" ]; then
-            MENU_ITEMS+=("$ITEM" "Folder")
-        else
-            MENU_ITEMS+=("$ITEM" "File")
-        fi
-    done
-
-    # Show the menu and store the selected items
-    SELECTED=$(dialog --stdout --checklist "Select items to copy:" 0 0 0 "${MENU_ITEMS[@]}")
-    if [ -n "$SELECTED" ]; then
-        SELECTED_ITEMS=($SELECTED)
-    else
-        break
-    fi
-done
+# Print the selected files
+# echo "Selected files: $folder_path/$selected_files"
 
 # Copy the selected items to the FTP site
-for ITEM in "${SELECTED_ITEMS[@]}"; do
-    if [ -d "$WORKING_DIR/$ITEM" ]; then
-        ftp -i -n <<EOF
-        open $FTP_PATH
-        user $FTP_USERNAME $FTP_PASSWORD
-        cd $FTP_LOCATION
-        mkdir "$ITEM"
-        cd "$ITEM"
-        quit
+if [ -d "$folder_path/$selected_files" ]; then
+    echo "copying $folder_path/$selected_files to $FTP_LOCATION$FTP_PATH";
+    ftp -i -n -d <<EOF
+    open $FTP_LOCATION
+    user $FTP_USERNAME $FTP_PASSWORD
+    cd $FTP_PATH
+    epsv off
+    quit
 EOF
-        lftp -e "mirror --reverse $WORKING_DIR/$ITEM $ITEM; quit" -u $FTP_USERNAME,$FTP_PASSWORD $FTP_PATH/$FTP_LOCATION
-    else
-        ftp -i -n <<EOF
-        open $FTP_PATH
-        user $FTP_USERNAME $FTP_PASSWORD
-        cd $FTP_LOCATION
-        put "$WORKING_DIR/$ITEM" "$ITEM"
-        quit
+    lftp -e "mirror --reverse $folder_path/$selected_files; quit" -u $FTP_USERNAME,$FTP_PASSWORD $FTP_PATH/$FTP_LOCATION
+else
+    echo "copying $folder_path/$selected_files to $FTP_LOCATION$FTP_PATH";
+    ftp -i -n -d <<EOF
+    open $FTP_LOCATION
+    user $FTP_USERNAME $FTP_PASSWORD
+    cd $FTP_PATH
+    epsv off
+    put "$folder_path/$selected_files" "$FTP_PATH/$selected_files"
+    quit
 EOF
-    fi
-done
-
-# Show a message to indicate that the copy process is complete
-dialog --msgbox "Copy process complete." 0 0
+fi
