@@ -1,11 +1,13 @@
 #!/bin/bash
 
-# Read FTP path and location from a config file
+# Read FTP path, location, username, and password from a config file
 FTP_PATH=$(grep "ftp_path=" config.txt | cut -d= -f2)
 FTP_LOCATION=$(grep "ftp_location=" config.txt | cut -d= -f2)
+FTP_USERNAME=$(grep "ftp_username=" config.txt | cut -d= -f2)
+FTP_PASSWORD=$(grep "ftp_password=" config.txt | cut -d= -f2)
 
 # Define the working directory
-WORKING_DIR=/path/to/your/directory
+WORKING_DIR=$(pwd)
 
 # Create an array to store the selected items
 SELECTED_ITEMS=()
@@ -39,17 +41,17 @@ for ITEM in "${SELECTED_ITEMS[@]}"; do
     if [ -d "$WORKING_DIR/$ITEM" ]; then
         ftp -i -n <<EOF
         open $FTP_PATH
-        user username password
+        user $FTP_USERNAME $FTP_PASSWORD
         cd $FTP_LOCATION
         mkdir "$ITEM"
         cd "$ITEM"
         quit
 EOF
-        lftp -e "mirror --reverse $WORKING_DIR/$ITEM $ITEM; quit" -u username,password $FTP_PATH/$FTP_LOCATION
+        lftp -e "mirror --reverse $WORKING_DIR/$ITEM $ITEM; quit" -u $FTP_USERNAME,$FTP_PASSWORD $FTP_PATH/$FTP_LOCATION
     else
         ftp -i -n <<EOF
         open $FTP_PATH
-        user username password
+        user $FTP_USERNAME $FTP_PASSWORD
         cd $FTP_LOCATION
         put "$WORKING_DIR/$ITEM" "$ITEM"
         quit

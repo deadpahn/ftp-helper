@@ -1,2 +1,4 @@
-ftp_path=
-ftp_location=
+ftp_path=/dev_hdd0/GAMES
+ftp_location=10.0.0.96
+ftp_username=ps3
+ftp_password=ps3
