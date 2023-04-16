@@ -12,12 +12,12 @@ folder_path=$(cd "$(dirname "$0")"; pwd)
 # Get a list of files in the folder
 files=$(ls $folder_path)
 
-# Create the dialog window using zenity
-selected_files=$(zenity --list \
-                    --title="Select Files" \
-                    --multiple \
-                    --column="Files" \
-                    $files)
+# Create the dialog window using dialog
+selected_files=$(dialog --stdout \
+                    --title "Select Files" \
+                    --checklist "Choose files to upload:" \
+                    0 0 0 \
+                    $(for file in $files; do echo "$file \"$file\" off"; done))
 
 # Print the selected files
 # echo "Selected files: $folder_path/$selected_files"
