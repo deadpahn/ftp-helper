@@ -1,9 +1,18 @@
 #!/bin/bash
+# Get the absolute path of the script
+SCRIPT_PATH=$(readlink -f "$0")
+# Get the base path of the script
+BASE_PATH=$(dirname "$SCRIPT_PATH")
+SCRIPT_NAME=$(basename "$SCRIPT_PATH")
+logFile="$BASE_PATH/ftp-helper.log"
+csvFile="$BASE_PATH/files.csv"
+configFile="$BASE_PATH/config.txt"
+jobsFile="$BASE_PATH/jobs.queue"
 
-csvFile="files.csv"
 # make new files csv
 > $csvFile
-
+> $logFile
+> $jobsFile
 # Check for dependencies
 if ! command -v ncftpput &> /dev/null
 then
@@ -18,14 +27,10 @@ then
 fi
 
 # Read FTP path, location, username, and password from a config file
-FTP_PATH=$(grep "ftp_path=" config.txt | cut -d= -f2)
-FTP_LOCATION=$(grep "ftp_location=" config.txt | cut -d= -f2)
-FTP_USERNAME=$(grep "ftp_username=" config.txt | cut -d= -f2)
-FTP_PASSWORD=$(grep "ftp_password=" config.txt | cut -d= -f2)
-
-#SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-#echo "The script you are running has basename $( basename -- "$0"; ), dirname $( dirname -- "$0"; )";
-#echo "The present working directory is $( pwd; )";
+FTP_PATH=$(grep "ftp_path=" $configFile | cut -d= -f2)
+FTP_LOCATION=$(grep "ftp_location=" $configFile | cut -d= -f2)
+FTP_USERNAME=$(grep "ftp_username=" $configFile | cut -d= -f2)
+FTP_PASSWORD=$(grep "ftp_password=" $configFile | cut -d= -f2)
 
 # Set the folder path
 folder_path=$( pwd; )
@@ -37,29 +42,49 @@ done < <(find "$folder_path" -maxdepth 1 \( -type f -o -type d \) -print0)
 for (( i=0; i<${#files[@]}; i+=2 )); do
     file="${files[i]}"
     display_name="$(basename "${files[i+1]}")"
-    echo '"'${display_name}'"' '|' '"'${file}'"' >> files.csv
+    echo '"'${display_name}'"' '|' '"'${file}'"' >> $csvFile
 done
 
 # Add files from CSV to the array
 while IFS='|' read -r name path; do
-  filesForDialog+=("$name" "$path" off)
+  filesForDialog+=("$path" "$name" off)
 done < "$csvFile"
 
-# Print the contents of the files array
-#printf '%s\n' "${filesForDialog[@]}"
-#exit
 # Create the dialog window using dialog
 selected_files=$(dialog --stdout \
                     --title "Select Files" \
+                    --no-tags \
+                    --separator "|" \
                     --checklist "Choose files to upload:" \
                     0 0 0 \
                     "${filesForDialog[@]}")
-
-# Copy the selected items to the FTP site
+clear
+IFS="|"
 for file in $selected_files; do
-  ncftpput -R -v -u $FTP_USERNAME -p $FTP_PASSWORD $FTP_LOCATION $FTP_PATH "$folder_path/$file"
+    # remove leading and trailing quotes
+    file="${file%\"}"
+    file="${file#\"}"
+    # replace all occurrences of `\"` with `"`
+    file="${file//\\\"/\"}"
+    file=$(echo "$file" | sed "s/\"/'/g")
+
+    if [[ -n "$file" ]]; then
+      echo ncftpput -R -v -u "$FTP_USERNAME" -p "$FTP_PASSWORD" "$FTP_LOCATION" "$FTP_PATH" "$file" >> "$jobsFile" 2>&1
+    fi
 done
 
-clear
+bash $jobsFile
 
-echo "Done adding $selected_files"
+rm $csvFile
+rm $jobsFile
+
+echo "
+▀███▀▀▀█████▀▀██▀▀██████▀▀▀██▄       ▀███▀▀▀███████▀████▀   ▀███▀▀▀███ ▄█▀▀▀█▄█   ▀███▀▀▀██▄   ▄▄█▀▀██▄ ▀███▄   ▀███▀███▀▀▀███
+  ██    ▀█▀   ██   ▀█ ██   ▀██▄        ██    ▀█ ██   ██       ██    ▀█▄██    ▀█     ██    ▀██▄██▀    ▀██▄ ███▄    █   ██    ▀█
+  ██   █      ██      ██   ▄██         ██   █   ██   ██       ██   █  ▀███▄         ██     ▀███▀      ▀██ █ ███   █   ██   █
+  ██▀▀██      ██      ███████          ██▀▀██   ██   ██       ██████    ▀█████▄     ██      ███        ██ █  ▀██▄ █   ██████
+  ██   █      ██      ██        █████  ██   █   ██   ██     ▄ ██   █  ▄     ▀██     ██     ▄███▄      ▄██ █   ▀██▄█   ██   █  ▄
+  ██          ██      ██               ██       ██   ██    ▄█ ██     ▄██     ██     ██    ▄██▀██▄    ▄██▀ █     ███   ██     ▄█
+▄████▄      ▄████▄  ▄████▄           ▄████▄   ▄████▄███████████████████▀█████▀    ▄████████▀   ▀▀████▀▀ ▄███▄    ██ ▄██████████
+~_~_~_~_~_~ BYE!!!
+"
