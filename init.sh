@@ -67,6 +67,7 @@ for file in $selected_files; do
     # replace all occurrences of `\"` with `"`
     file="${file//\\\"/\"}"
     file=$(echo "$file" | sed "s/\"/'/g")
+    file=$(echo "$file" | sed 's/\\\([()]\)/\1/g')
 
     if [[ -n "$file" ]]; then
       echo ncftpput -R -v -u "$FTP_USERNAME" -p "$FTP_PASSWORD" "$FTP_LOCATION" "$FTP_PATH" "$file" >> "$jobsFile" 2>&1
